@@ -1,0 +1,11 @@
+# CPU PyTorch is installed separately in Dockerfile to avoid CUDA wheel downloads.
+sentence-transformers==5.7.0
+transformers==4.57.6
+accelerate==1.15.0
+numpy==2.5.4
+scipy==1.18.1
+jsonlines==4.0.0
+nlpstats==0.0.1
+nltk==3.10.3
+permpy==0.2.12
+networkx==3.5
