@@ -1,0 +1,29 @@
+{
+  "boundary_quote_repair": false,
+  "code_sha256": "f63dc4d581824f95db7b59c3a63a57e15df63e6bf7d7e0fb7df3df232ee94f87",
+  "frozen_commit": "f9ee8a1edfa756200a8bc66be0dfe90d8f23f35d",
+  "h1": {
+    "blend": 0.35,
+    "encoder": "jhu-clsp/mmBERT-base",
+    "encoder_revision": "c5955035435e2bf121cde7f3c8863ef52ff35d82",
+    "endpoint": "https://api.publicai.co/v1",
+    "max_calls": 54,
+    "max_subtokens": 3072,
+    "per_side": 12,
+    "protocol_version": "clauseshift-h1-frozen-v115",
+    "selected_per_lang": 18,
+    "upstream_revision": "1807a42100e742ed03d337c54c4b9ea86995f565",
+    "window": 32
+  },
+  "max_tokens": 600,
+  "method": "H1-HYBRID",
+  "model": "swiss-ai/apertus-v1.5-8b",
+  "prompt_file": "prompts/paper_exact.txt",
+  "prompt_sha256": "659a3b43068363e339ba0f98513433c54395513a2204eb0d3e16e0b1ecbea95d",
+  "punctuation_repair": false,
+  "retries": 0,
+  "schema": 4,
+  "syntax_repair": false,
+  "timeout": 52,
+  "upstream_sha": "1807a42100e742ed03d337c54c4b9ea86995f565"
+}
