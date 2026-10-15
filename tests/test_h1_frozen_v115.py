@@ -103,7 +103,7 @@ class TestH1Frozen(TestCase):
             path=Path(td)/'manifest.json'
             item=submission.freeze(path,h.UPSTREAM_SHA,'b'*40,h.MODEL,
                          method='H1-HYBRID',embedding_revision=h.HF_SHA)
-            self.assertEqual(item['schema'],4)
+            self.assertEqual(item['schema'],5)
             self.assertEqual(submission.preflight(path)['method'],'H1-HYBRID')
             item['h1']['blend']=.1
             path.write_text(json.dumps(item))

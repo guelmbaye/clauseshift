@@ -91,3 +91,7 @@ The batching modifies the model's context and is not equivalent to E0-PJQ or
 the previously evaluated E2 variant. Its Spearman quality is **unmeasured**;
 all tests are synthetic and the end-to-end Docker run has not been tested.
 Existing E0 and E2 comparisons are small, exploratory, and not UZH scores.
+
+### Submission hotfix V1.15.2 — coverage only, after first frozen run
+
+The original V1.15.1 runner failed closed on a final input exceeding the conservative 3072-subtoken **per-call** limit. After that failure, V1.15.2 added deterministic proportional word-based parallel windows with 24-token overlaps per side. Each original token's score is taken from the single corresponding core window, with strict token-order and output-length validation. No padding/truncation or synthetic similarity scores are used. Documents inside the original cap follow the exact original single-call path. This is a **post-freeze technical hotfix**, not a measured improvement to DEV Spearman, and any competition freeze restrictions must be checked and disclosed. All reported DEV/H1 metrics refer to the earlier measured methods and are not new V1.15.2 scores.

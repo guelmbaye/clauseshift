@@ -105,12 +105,14 @@ def freeze(manifest, upstream_sha, frozen_commit, model, max_tokens=4096, timeou
         if (model != h1.MODEL or upstream_sha.lower() != h1.UPSTREAM_SHA or
                 embedding_revision.lower() != h1.HF_SHA or retries != 0):
             raise ValueError('H1: Apertus, upstream, HF revision or retry setting does not match validated protocol')
-        payload.update(schema=4,punctuation_repair=False,syntax_repair=False,boundary_quote_repair=False,
+        payload.update(schema=5,punctuation_repair=False,syntax_repair=False,boundary_quote_repair=False,
                        max_tokens=600,timeout=52,retries=0,
                        h1={'encoder':h1.ENCODER,'encoder_revision':h1.HF_SHA,
                            'upstream_revision':h1.UPSTREAM_SHA,'selected_per_lang':h1.N_PER_LANG,
                            'max_calls':h1.MAX_CALLS,'window':h1.WIN,'per_side':h1.REQUEST_PER_SIDE,
                            'blend':h1.BLEND,'max_subtokens':h1.MAX_SUBTOKENS,
+                           'long_document_policy':h1.LONG_POLICY,'chunk_overlap':h1.CHUNK_OVERLAP,
+                           'max_chunks':h1.MAX_CHUNKS,
                            'endpoint':h1.ENDPOINT,'protocol_version':h1.VERSION})
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')
@@ -129,7 +131,7 @@ def preflight(manifest=MANIFEST, *, require_secrets=False):
                 'punctuation_repair','syntax_repair','boundary_quote_repair'}
     batch=(data.get('schema')==2 and data.get('method')==BATCH_METHOD)
     single=(data.get('schema')==3 and data.get('method')==SINGLE_METHOD)
-    h1=(data.get('schema')==4 and data.get('method')==H1_METHOD)
+    h1=(data.get('schema')==5 and data.get('method')==H1_METHOD)
     if h1:
         from . import h1_hybrid as h
         if set(data)!=expected|{'h1'} or not isinstance(data.get('h1'),dict):
@@ -138,6 +140,8 @@ def preflight(manifest=MANIFEST, *, require_secrets=False):
                 'upstream_revision':h.UPSTREAM_SHA,'selected_per_lang':h.N_PER_LANG,
                 'max_calls':h.MAX_CALLS,'window':h.WIN,'per_side':h.REQUEST_PER_SIDE,
                 'blend':h.BLEND,'max_subtokens':h.MAX_SUBTOKENS,
+                'long_document_policy':h.LONG_POLICY,'chunk_overlap':h.CHUNK_OVERLAP,
+                'max_chunks':h.MAX_CHUNKS,
                 'endpoint':h.ENDPOINT,'protocol_version':h.VERSION}
         if data['h1']!=wanted or data['upstream_sha']!=h.UPSTREAM_SHA or data['model']!=h.MODEL:
             raise ValueError('Frozen H1 protocol modified')

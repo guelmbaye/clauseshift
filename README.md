@@ -84,3 +84,5 @@ See `docs/BATCH_SUBMISSION_V114_FR.md`. The DEV-only interface is
 accepts a frozen manifest selecting either `E0-PJQ` or `E2-BATCH` — only
 after explicit, source-hash-verified freeze. V1.14 has **not** yet been tested
 with a real Apertus batch response or run end-to-end on the full corpus.
+
+**V1.15.2 completeness hotfix:** For long documents only, the `H1-HYBRID` baseline uses bounded overlapping parallel token windows (24 context words per side, 3072 subtokens per inference, strict score stitching). Short documents are unchanged; no final labels are consulted. See `docs/FROZEN_H1_V1152_FR.md` for the audit trail and mandatory re-freeze process after the V1.15.1 long-document fail-closed incident.

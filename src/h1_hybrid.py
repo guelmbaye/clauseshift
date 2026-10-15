@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 from . import cli
 from .core import LANGS, load_jsonl, validate_input_rows, valid_prediction
 
-VERSION = 'clauseshift-h1-frozen-v115'
+VERSION = 'clauseshift-h1-frozen-v1152-segmented'
 UPSTREAM_SHA = '1807a42100e742ed03d337c54c4b9ea86995f565'
 HF_SHA = 'c5955035435e2bf121cde7f3c8863ef52ff35d82'
 ENCODER = 'jhu-clsp/mmBERT-base'
@@ -30,7 +30,10 @@ WIN = 32
 REQUEST_PER_SIDE = 12
 BLEND = 0.35
 MAX_CALLS = 54
-MAX_SUBTOKENS = 3072
+MAX_SUBTOKENS = 3072  # Maximum per model invocation, NOT per complete document.
+LONG_POLICY = 'overlap-relative-words-v1'
+CHUNK_OVERLAP = 24  # Context-only whitespace tokens on each side of each chunk.
+MAX_CHUNKS = 64  # Bounded, deterministic; very short/extreme input fails closed.
 
 class ContractError(ValueError):
     pass
@@ -90,6 +93,70 @@ def load_baseline(root,sig,lang,row):
     check_row(pred)
     return pred
 
+def infer_doc(model, row, max_subtokens=MAX_SUBTOKENS):
+    """Token-preserving DiffAlign inference for arbitrarily long bilingual inputs.
+
+    For an over-cap document, subdivide both sides at proportional *whole-word*
+    positions, with overlapping context. Each original token receives the model
+    score from precisely one core window; overlapping context is never exported.
+    No label padding, truncation, or score fabrication is permitted.
+    """
+    if type(max_subtokens) is not int or max_subtokens < 4:
+        raise ContractError('Invalid per-call subtoken cap')
+    tokenizer=model.pipeline.tokenizer
+    words={side:row['text_'+side].split() for side in 'ab'}
+    sizes={side:len(tokenizer(row['text_'+side],add_special_tokens=True,truncation=False)['input_ids'])
+           for side in 'ab'}
+    # Common short-document path remains exactly the V1.15.1 inference call.
+    if max(sizes.values()) <= max_subtokens:
+        parts=[{'a':(0,len(words['a']),0,len(words['a'])),
+                'b':(0,len(words['b']),0,len(words['b']))}]
+    else:
+        if min(len(words['a']),len(words['b']))==0:
+            raise ContractError('Cannot align empty-language long document')
+        lower=max(2,(max(sizes.values())+max_subtokens-1)//max_subtokens)
+        parts=None
+        for count in range(lower, min(MAX_CHUNKS,len(words['a']),len(words['b']))+1):
+            proposed=[]
+            for i in range(count):
+                item={}
+                for side in 'ab':
+                    n=len(words[side]); core_start=i*n//count;core_end=(i+1)*n//count
+                    if core_start>=core_end:
+                        raise ContractError('Long-document chunk without core tokens')
+                    start=max(0,core_start-CHUNK_OVERLAP)
+                    end=min(n,core_end+CHUNK_OVERLAP)
+                    item[side]=(start,end,core_start,core_end)
+                proposed.append(item)
+            if all(len(tokenizer(' '.join(words[side][item[side][0]:item[side][1]]),
+                                 add_special_tokens=True,truncation=False)['input_ids'])<=max_subtokens
+                   for item in proposed for side in 'ab'):
+                parts=proposed
+                break
+        if parts is None:
+            raise ContractError('Cannot segment long bilingual document within per-call subtoken cap')
+    labels={side:[] for side in 'ab'}
+    for part in parts:
+        excerpts={side:' '.join(words[side][part[side][0]:part[side][1]]) for side in 'ab'}
+        output=model.predict(a=excerpts['a'],b=excerpts['b'])
+        for side in 'ab':
+            start,end,core_start,core_end=part[side]
+            got=tuple(getattr(output,'tokens_'+side))
+            expected=tuple(words[side][start:end])
+            values=getattr(output,'labels_'+side)
+            if got!=expected or len(values)!=len(expected):
+                raise ContractError('DiffAlign chunk coverage/order mismatch')
+            core_offset=core_start-start
+            # Exactly the core labels: context overlap never supplies duplicate scores.
+            selected=values[core_offset:core_offset+(core_end-core_start)]
+            if len(selected)!=core_end-core_start:
+                raise ContractError('Incomplete DiffAlign core prediction')
+            labels[side].extend(float(x) for x in selected)
+    if any(len(labels[side])!=len(words[side]) for side in 'ab'):
+        raise ContractError('Long-document stitching lost or duplicated scores')
+    return labels,len(parts)
+
+
 def predict_all(root,sig,files,model_factory=None,max_subtokens=MAX_SUBTOKENS):
     pending=[(lang,row) for lang in LANGS for row in files[lang] if load_baseline(root,sig,lang,row) is None]
     if pending:
@@ -102,26 +169,16 @@ def predict_all(root,sig,files,model_factory=None,max_subtokens=MAX_SUBTOKENS):
             snapshot=snapshot_download(repo_id=ENCODER,revision=HF_SHA,local_files_only=True)
             model=DiffAlign(snapshot,layer=-1)
         else:model=model_factory()
-        tokenizer=model.pipeline.tokenizer
         for lang,row in pending:
-            sizes=[len(tokenizer(row[f'text_{s}'],add_special_tokens=True,truncation=False)['input_ids']) for s in 'ab']
-            if max(sizes)>max_subtokens:
-                raise ContractError(f'{lang}/{row["id"]}: {sizes} subtokens exceed frozen cap {max_subtokens}')
             start=time.monotonic()
-            prediction=model.predict(a=row['text_a'],b=row['text_b'])
-            pred={'id':row['id'],'text_a':row['text_a'],'text_b':row['text_b']}
-            for side in 'ab':
-                got=tuple(getattr(prediction,'tokens_'+side))
-                expected=tuple(row['text_'+side].split())
-                values=getattr(prediction,'labels_'+side)
-                if got!=expected or len(values)!=len(expected):
-                    raise ContractError('DiffAlign token coverage/order mismatch')
-                pred['labels_'+side]=[float(v) for v in values]
+            scores,chunks=infer_doc(model,row,max_subtokens)
+            pred={'id':row['id'],'text_a':row['text_a'],'text_b':row['text_b'],
+                  'labels_a':scores['a'],'labels_b':scores['b']}
             valid_prediction(pred,row);check_row(pred)
             atomic(checkpoint(root,'baseline',sig,lang,row['id']),
                    {'version':VERSION,'signature':sig,'text_hash':digest([row['text_a'],row['text_b']]),
                     'prediction':pred})
-            print(f'[H1 BASELINE SAVED] {lang}/{row["id"]} elapsed={time.monotonic()-start:.2f}s',flush=True)
+            print(f'[H1 BASELINE SAVED] {lang}/{row["id"]} chunks={chunks} elapsed={time.monotonic()-start:.2f}s',flush=True)
     return {lang:[load_baseline(root,sig,lang,row) for row in files[lang]] for lang in LANGS}
 
 def select(rows):
