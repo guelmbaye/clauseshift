@@ -93,22 +93,3 @@ The project also retains earlier E0/E1/E2 research prototypes in `src/`, `tools/
 ## Attribution and license
 
 Code: Apache-2.0. Technical report and original project documentation: CC BY 4.0, subject to third-party rights. SwissGov-RSD, mmBERT, Apertus and underlying source texts retain their respective upstream licenses. See `technical_report.md` for methods, results, limitations, infrastructure, and references.
-
-## Submitted prediction artifacts
-
-The three validated final prediction files are committed
-to this repository under `predictions/`:
-
-- `predictions/CLAUSESHIFT_admin_de.jsonl.jsonl`
-- `predictions/CLAUSESHIFT_admin_fr.jsonl.jsonl`
-- `predictions/CLAUSESHIFT_admin_it.jsonl.jsonl`
-
-These are the frozen V1.15.2 submission artifacts
-(224 records per language, 672 records total).
-
-A fresh `make run` generates predictions under
-`out/predictions/`. This runtime directory is Git-ignored,
-while `predictions/` contains the committed submission copies.
-
-The validated SHA-256 hashes are recorded in
-`technical_report.md`.
