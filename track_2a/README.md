@@ -46,13 +46,35 @@ make warmup  # Download pinned public mmBERT weights to .hf_cache/
 make run     # Build Docker; retrieve unlabeled text fields and generate predictions
 ```
 
-Prediction filenames (relative to `track_2a/`):
+## Prediction artifacts
+
+### Submitted predictions
+
+The validated CLAUSESHIFT V1.15.2 predictions are available
+in this repository under `track_2a/predictions/`:
+
+```text
+predictions/CLAUSESHIFT_admin_de.jsonl.jsonl
+predictions/CLAUSESHIFT_admin_fr.jsonl.jsonl
+predictions/CLAUSESHIFT_admin_it.jsonl.jsonl
+```
+
+Each file contains 224 records (672 records total).
+All three files passed offline structural validation.
+
+### Reproducing predictions
+
+Running `make run` generates the prediction files under:
 
 ```text
 out/predictions/CLAUSESHIFT_admin_de.jsonl.jsonl
 out/predictions/CLAUSESHIFT_admin_fr.jsonl.jsonl
 out/predictions/CLAUSESHIFT_admin_it.jsonl.jsonl
 ```
+
+The `out/` directory is ignored by Git, while `predictions/`
+contains the published submission artifacts.
+
 
 `make preflight` checks the frozen manifest without accessing final inputs; `python -m unittest discover -s tests -q` runs the included unit tests. No final gold labels or final-set metric should be read, computed or used for model selection. Source data are retrieved from pinned SwissGov-RSD files and immediately stripped to `id`, `text_a`, `text_b` before inference.
 
