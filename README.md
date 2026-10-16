@@ -1,88 +1,19 @@
-# CLAUSESHIFT — Hack Apertus 2026 Track 2A
+# CLAUSESHIFT — Hack Apertus 2026
 
-**V1.15 adds frozen `H1-HYBRID` inference to the existing E0/E2 experiments.**
+Track 2A · University of Zurich · SwissGov-RSD
 
-See **`docs/FROZEN_H1_V115_FR.md`** for deployment, scientific results, freeze and run steps. H1 computes token-level DiffAlign/mmBERT scores from unlabeled texts and makes up to 54 actual Apertus requests; it never copies published DEV predictions into final outputs. No gold/test tuning is allowed.
+Evidence-grounded cross-lingual semantic difference
+recognition using Apertus 1.5 and mmBERT/DiffAlign.
 
-### Recorded DEV evidence (not expected final performance)
+Project source and technical report: [track_2a/](track_2a/)
 
-- Full 504-document baseline mmBERT public: **Spearman macro 0.129185** (DE 0.146786, FR 0.087821, IT 0.152947).
-- Fixed 54-document H1 ablation: **0.106802 → 0.107801** (+0.001000 macro). French dropped; this is not a robust general gain.
-- The new H1 runner passed local synthetic tests, but **has not yet been Docker-tested or run end-to-end on real final data**. Do not claim successful final deployment before verifying it on the VPS.
+## Reproduce
 
-Other prior experiments and protocols remain in the project history; no existing E0 or E2 code was removed.
+Set LLM_NAME, LLM_BASE_URL and LLM_API_KEY,
+then run `make run` from this repository root.
 
-# CLAUSESHIFT — Hack Apertus Track 2A / University of Zurich
+The first run downloads the pinned mmBERT weights.
+See track_2a/README.md for technical details.
 
-*Evidence-Grounded Cross-Lingual Semantic Difference Recognition with Apertus 1.5*
-
-> **Status: real Apertus experiments on selected DEV documents; no official full DEV score, held-out test evaluation, or completed final submission.**
-
-Commencer en français par [`docs/GUIDE_EXECUTION_FR.md`](docs/GUIDE_EXECUTION_FR.md). For detailed English instructions see [`docs/EXECUTION_GUIDE.md`](docs/EXECUTION_GUIDE.md) for all steps (dev inputs, exact prompting, Apertus API, prediction format, validation, official evaluation, final freeze and test isolation). The frozen strategy is [`docs/DOCUMENT_01_FROZEN_V1.2.md`](docs/DOCUMENT_01_FROZEN_V1.2.md).
-
-## Five first commands
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 -m src.cli fetch-dev --upstream-sha master
-export LLM_NAME='swiss-ai/Apertus-v1.5-8B'
-export LLM_BASE_URL='YOUR_AUTHORIZED_APERTUS_ENDPOINT/v1'
-export LLM_API_KEY='YOUR_TOKEN'
-python3 -m src.cli run --split dev --max-examples 1
-```
-
-Before claiming exact baseline reproduction, supply verbatim Appendix-E prompt in `prompts/paper_exact.txt` and use `--prompt-file`. The built-in prompt is only a task-aligned three-shot approximation.
-
-## Key result to report
-
-`macro_spearman = (rho_en_de + rho_en_fr + rho_en_it) / 3`
-
-**Limited real Apertus DEV proxy results exist; see `technical_report.md`. No official full-benchmark score is established.**
-
-## Official rules and research
-
-- [HackApertus project template](https://github.com/HackApertus/project-template)
-- [Track 2A template README](https://github.com/HackApertus/project-template/tree/main/track_2a)
-- [UZH SwissGov-RSD task](https://hackapertus.notion.site/track-2a-uzh)
-- [SwissGov-RSD official research code](https://github.com/ZurichNLP/SwissGov-RSD)
-- [Paper and Appendix E](https://aclanthology.org/2026.acl-long.1437.pdf)
-
-Code is Apache-2.0. Original scholarly/government documents and their gold annotations retain their own licences and attribution conditions. Documents prepared for project submission should be licensed CC-BY-4.0 where applicable.
-
-## E1-C (v1.7) — DEV-only chunked numeric prototype
-
-New **separate candidate method**: `python3 -m src.e1c --lang de --doc-id admin_de_27 --max-calls 1`. See `docs/E1C_EXPERIMENT_V17_FR.md`. The original E0-PJQ method and checkpoints are unchanged. E1-C is not yet part of the final `make run` submission path.
-
-## E1-I V1.8 — DEV-only indexed selective scoring
-
-`python3 -m src.e1i --lang de --doc-id admin_de_27 --chunk-tokens 24 --max-calls 1`
-
-Le modèle retourne des maps indice → score, avec reprise ciblée sur les indices absents. Les scores semantiques sont toujours fournis par Apertus et les ponctuations autonomes reçoivent le score -1 par la règle déterministe du benchmark. Les checkpoints sont indépendants de E0-PJQ et E1-C. Voir `docs/E1I_EXPERIMENT_V18_FR.md`. Pas encore relié à `make run` ; pas de résultat Spearman réel garanti.
-
-## Expérience E2 V1.9 (DEV seulement)
-
-Voir [docs/E2_EXPERIMENT_V19_FR.md](docs/E2_EXPERIMENT_V19_FR.md). Le module `src.e2`
-permet un alignement multilingue par embeddings avec gaps explicites (`semantic`),
-un découpage proportionnel d'ablation (`proportional`), les prompts indexés
-`short` / `fewshot` et des checkpoints distincts. `--plan-only` permet
-l'inspection **sans API Apertus ni labels test**. Le modèle d'embeddings
-est un outil auxiliaire et doit être déclaré dans le rapport de concours.
-
-**Attention :** aucune performance E2 sur données réelles n'a encore été mesurée ;
-la V1.9 ne modifie pas le `make run` final.
-
-## Frozen submission runner V1.11 (provisional E0-PJQ)
-
-`make run` now runs Docker on the deliberately frozen E0-PJQ baseline, **only after** a verified `docs/submission_frozen.json` has been committed. See `docs/SUBMISSION_RUNNER_V111_FR.md`. Full-set completion is **not verified**: long inputs may still cause HTTP 504. The code deliberately rejects partial outputs.
-
-
-## V1.14 — Batched Indexed Scoring (experimental)
-
-See `docs/BATCH_SUBMISSION_V114_FR.md`. The DEV-only interface is
-`python3 -m src.e2_batch`; its completed scores can be compared to E0 with
-`python3 -m tools.compare_e2_batch_dev`. The official Docker `make run` now
-accepts a frozen manifest selecting either `E0-PJQ` or `E2-BATCH` — only
-after explicit, source-hash-verified freeze. V1.14 has **not** yet been tested
-with a real Apertus batch response or run end-to-end on the full corpus.
-
-**V1.15.2 completeness hotfix:** For long documents only, the `H1-HYBRID` baseline uses bounded overlapping parallel token windows (24 context words per side, 3072 subtokens per inference, strict score stitching). Short documents are unchanged; no final labels are consulted. See `docs/FROZEN_H1_V1152_FR.md` for the audit trail and mandatory re-freeze process after the V1.15.1 long-document fail-closed incident.
+License: Apache-2.0 (code).
+Documentation: CC-BY-4.0.
